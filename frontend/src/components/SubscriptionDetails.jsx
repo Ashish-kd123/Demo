@@ -62,10 +62,9 @@ const SubscriptionDetails = () => {
 
     setLoading(true);
     try {
-      await axios.put("/subscription/update", {
-        subscription_id: subscription.stripe_subscription_id,
-        new_plan_id: newPlanId,
-      });
+      await axios.put(`/subscription/update/usersubscription/${subscription.id}`, {
+  new_plan_id: newPlanId,
+});
       alert("Plan updated!");
       window.location.reload();
     } catch (err) {

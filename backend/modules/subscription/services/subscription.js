@@ -76,6 +76,7 @@ const createSubscriptions = async (user_id, plan_id, payment_method_id) => {
 
     const plan = await Plan.findOne({ where: { id: plan_id } });
     if (!plan) throw new Error("Plan not found");
+    
     if (!plan.stripe_price_id) throw new Error("Plan is missing Stripe price ID");
 
     let stripeCustomerId = user.stripe_customer_id;
@@ -94,18 +95,20 @@ const createSubscriptions = async (user_id, plan_id, payment_method_id) => {
       invoice_settings: { default_payment_method: payment_method_id },
     });
 
-    const stripeSubscription = await stripe.subscriptions.create({
+    console.log("Creating subscription with price ID:", plan.stripe_price_id);
+   const stripeSubscription = await stripe.subscriptions.create({
       customer: stripeCustomerId,
       items: [{ price: plan.stripe_price_id }],
-      payment_behavior: 'default_incomplete',
-      payment_settings: { save_default_payment_method: 'on_subscription' },
-      expand: ['latest_invoice', 'latest_invoice.payment_intent', 'pending_setup_intent'],
+      expand: ['latest_invoice'],
     });
 
-    const latestInvoice = stripeSubscription.latest_invoice;
-    const clientSecret = latestInvoice?.payment_intent?.client_secret || null;
 
-   
+
+  //  const paymentIntent = stripeSubscription.latest_invoice?.payment_intent;
+  //   const clientSecret = paymentIntent?.client_secret;
+  //   const latestInvoice = stripeSubscription.latest_invoice;
+
+  //   if (!clientSecret) throw new Error("Unable to retrieve client_secret for payment confirmation.");
     const startDate = new Date();
     let endDate;
     if (plan.interval === 'monthly') {
@@ -120,7 +123,7 @@ const createSubscriptions = async (user_id, plan_id, payment_method_id) => {
       user_id,
       plan_id,
       stripe_subscription_id: stripeSubscription.id,
-      status: clientSecret ? "pending" : "active",
+      status: "active",
       started_at: startDate,
       ended_at: endDate,
     };
@@ -132,10 +135,12 @@ const createSubscriptions = async (user_id, plan_id, payment_method_id) => {
     return {
       message: "Subscription created successfully",
       subscription: newSubscription,
-      client_secret: clientSecret,
+      // latest_invoice: latestInvoice,
+      // client_secret: clientSecret,
     };
 
   } catch (error) {
+    console.log(error)
     console.error("Detailed subscription creation error:", {
       message: error.message,
       stack: error.stack,
@@ -153,18 +158,24 @@ const createSubscriptions = async (user_id, plan_id, payment_method_id) => {
 
 
 
+
 const cancelSubscription = async (subscription_id) => {
   console.log("cancelSubscription called with subscription_id:", subscription_id);
 
   const { Usersubscriptions } = await getAllModels(process.env.DB_TYPE);
   console.log("Models loaded, Usersubscriptions:", !!Usersubscriptions);
 
-  const subscription = await Usersubscriptions.findOne({ where: { id: subscription_id } });
-  console.log("Fetched subscription:", subscription);
+  let subscription = await Usersubscriptions.findOne({ where: { id: subscription_id } });
+
+  if (!subscription) {
+    subscription = await Usersubscriptions.findOne({ where: { stripe_subscription_id: subscription_id } });
+  }
+
+  console.log("Subscription fetched:", subscription);
 
   if (!subscription || !subscription.stripe_subscription_id) {
     console.error("Subscription not found or not linked with Stripe");
-    throw new Error("Subscription not found or not linked with Stripe" );
+    throw new Error("Subscription not found or not linked with Stripe");
   }
 
   console.log("Stripe subscription ID:", subscription.stripe_subscription_id);
@@ -178,7 +189,7 @@ const cancelSubscription = async (subscription_id) => {
   }
 
   try {
-    const cancelResponse = await subscription.update({ status: 'canceled' }); 
+    const cancelResponse = await subscription.update({ status: 'canceled' });
     console.log("Subscription status updated to 'canceled':", cancelResponse);
   } catch (error) {
     console.error("Error updating subscription status:", error);
@@ -221,7 +232,7 @@ const updateSubscriptionPlan = async (subscription_id, new_plan_id) => {
 
   
   const subscription = await Usersubscriptions.findOne({
-  where: { stripe_subscription_id: subscription_id } 
+  where: { id: subscription_id } 
 });
   if (!subscription) {
     throw new Error("Subscription not found");
@@ -269,7 +280,7 @@ const createPayments = async (requestBody) => {
   return await Payments.create({
     ...requestBody,
     payment_date: new Date(),
-    status: 'succeeded'
+    status: 'paid'
   });
 };
 

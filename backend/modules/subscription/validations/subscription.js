@@ -5,7 +5,7 @@
 exports.addPlanInput = [
     { key: "name", type: "string", required: true },
     { key: "price", type: "number", required: true },
-    { key: "interval", type: "string", values: ["monthly", "yearly"], required: true },
+    { key: "interval", type: "string", values: ["monthly", "yearly","weekly"], required: true },
     { key: "features", type: "object", required: false },
     { key: "created_at", type: "date", required: false },
     { key: "stripe_price_id", type: "string", required: true }, 
@@ -30,7 +30,7 @@ exports.getPlanInput = [
 exports.createSubscriptionInput = [
   // { key: "user_id", type: "string", required: true },
   { key: "plan_id", type: "string", required: true },
-  {key: "payment_method_id", type:"string",required:true}
+  {key: "payment_method_id", type:"string",required:false}
 ];
 
 exports.cancelSubscriptionInput = [
@@ -59,11 +59,10 @@ exports.updateSubscriptionInput = [
 //validations/paymentstable
 
 exports.createPaymentsInput = [
-  { key: "user_id", type: "string", required: true },
+  // { key: "id", type: "string", required: true },
   { key: "subscription_id", type: "string", required: true },
   { key: "amount", type: "number", required: true },
   { key: "status", type: "string", required: true, values: ["paid", "failed", "pending"] },
-  { key: "payment_method", type: "string", required: true },
   { key: "payment_date", type: "date", required: true }
 ];
 
